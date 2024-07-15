@@ -13,7 +13,7 @@ URL 단축기 서비스 : 긴 url를 짧게 단축해주고, 변환된 url에 �
 - 단축기 동작 : 긴 url입력되면 단축 url 반환, 단축 url에 접속하면 원래 url로 갈 수 있어야 한다.
 - 트래픽 규모 : 매일 1억 개의 단축 URL 생성
 - 단축 URL의 길이는 짧으면 짧을수록 좋다.
-- 단축 url에는 숫자 0~9, 영문자(a~z, A~Z)만 사용 가능
+- 단축 url에는 숫자, 영문자(a~z, A~Z)만 사용 가능
 - 단축된 URL를 삭제, 갱신할 수 없다.
 
 ### 개략적 추정
@@ -28,4 +28,128 @@ URL 단축기 서비스 : 긴 url를 짧게 단축해주고, 변환된 url에 �
 
 ### API 엔드포인트
 
-<img src="https://github.com/user-attachments/assets/d731c938-d2d6-4645-a285-1eb232d08951" width=50%>
+#### 1. URL 단축용 엔드포인트
+
+| Method |       EndPoint       |           Body            |  Return  |
+| :----: | :------------------: | :-----------------------: | :------: |
+|  POST  | /api/v1/data/shorten | {longUrl : longURLstring} | 단축 URL |
+
+#### 2. 리디렉션용 엔드포인트
+
+| Method |     EndPoint     |  Return  |
+| :----: | :--------------: | :------: |
+|  GET   | /api/v1/shortUrl | 원래 URL |
+
+### ✨ URL 리디렉션
+
+<img src="https://github.com/user-attachments/assets/5ecd27c2-8569-4204-b481-3a5c9bb2858c" width=50%>
+
+단축 URL를 받은 서버는 그 URL을 원래 URL로 바꾸어 301 응답의 Location 헤더에 넣어 반환한다.
+
+<img src="https://github.com/user-attachments/assets/60f62226-cdfb-455e-9202-535b709d4f9a" width=50%>
+
+둘 다 리디렉션 응답이지만, 301 응답과 302 응답에는 차이가 있다.
+
+- `301 Permanently Moved`
+  - 해당 URL에 대한 HTTP 요청의 처리 책임이 **'영구적으로'** Location 헤더에 반환된 URL로 이전되었다는 응답
+  - 영구적으로 이전되었으므로 브라우저는 이 응답을 캐시한다.
+  - 따라서, 이후에 같은 URL에 요청을 보낼 필요가 있을 때 브라우저는 캐시된 원래 URL로 요청을 보내게 된다.
+- `302 Found`
+  - 주어진 URL로의 요청이 **'일시적으로'** Location 헤더가 지정하는 URL에 의해 처리되어야 한다는 응답
+  - 따라서 클라이언트의 요청은 언제나 단축 URL 서버에 먼저 보내진 후에 원래 URL로 리디렉션된다.
+- `301 Permanently Moved` 🆚 `302 Found`
+  - **_서버 부하를 줄이는 것이 중요하면_** `301` 사용(
+    첫 번째 요청만 서버로 전송되기 때문
+    )
+  - **_트래픽 분석이 중요할 때는_** `302` 사용(클릭 발생률, 발생 위치 추적에 유리)
+
+#### 💡리디렉션을 구현하는 가장 직관적인 방법은 해시 테이블을 사용하는 것이다.
+
+해시 테이블에 `<단축 URL, 원래 URL>`의 쌍을 저장한다고 가정한다면,
+
+- 원래 URL = hashTable.get(단축 URL)
+- 301 또는 302 응답 location 헤더에 원래 URL을 넣은 후 전송
+
+### ✨ URL 단축
+
+단축 URL이 `www.tinyurl.com/{hashValue}`같은 형태라고 할 때, 결국 중요한 것은 긴 URL을 이 해시값으로 대응시킬 해시 함수 f(x)를 찾는 일이다.
+<img src="https://github.com/user-attachments/assets/0f38ea94-b523-4db6-8de6-91aea94043c4" width=50%>
+
+#### 해시 함수 요구사항
+
+- 입력으로 주어지는 긴 URL이 다른 값이면 해시 값도 달라야 한다.
+- 계산된 해시 값은 원래 입력으로 주어졌던 긴 URL로 복원될 수 있어야 한다.
+
+## 3단계 : 상세 설계
+
+### 🌟 데이터 모델
+
+메모리는 유한하고 비싸기 때문에 실제 시스템에서는 해시 테이블보다 관계형 데이터베이스를 사용하는 것이 더 좋다.
+
+<img src="https://github.com/user-attachments/assets/15aae6c7-a340-4f88-b54b-81f33b628fa1" width=40%>
+
+#### 🌟 해시 함수
+
+해시 함수는 원래 URL을 단축 URL로 변환하는 데 쓰인다.
+아래 설명에서는 해시 함수가 계산하는 단축 URL 값을 hashValue라고 지칭한다.
+
+##### 해시 값 길이
+
+- hashValue는 0~9, a~z, A~Z 의 문자들로 구성된다. (62개)
+- hashValue의 길이를 정하기 위해서는 아래 수식을 만족하는 n의 최솟값을 찾아야 한다. n이 7일 때 요구사항을 만족시킬 수 있으므로 hashValue의 길이는 7이다.
+  $$62^n \geq 3,650억$$
+- 해시 함수 구현에 쓰일 기술로, '해시 후 충돌 해소' 방법과 'base-62 변환' 방법이 있다.
+
+  - `해시 후 충돌 해소`
+
+    - 쉬운 방법인 CRC32, MD5, SHA-1와 같은 해시 함수를 이용한다고 할 때, 가장 짧은 해시값조차도 7보다는 길다.
+    - 첫 번째 해결 방법 : 해시 값에서 처음 7개 글자만 이용
+
+      - 해시 결과가 서로 충돌할 확률이 높아지는데, 충돌이 발생하면 해소될 때까지 사전에 정한 문자열을 해시값에 덧붙인다.
+
+        <img src="https://github.com/user-attachments/assets/c1c14f2a-4251-4070-a718-1da693a6edc0" width=50%>
+
+        - 충돌은 해소할 수 있지만, 단축 URL을 생성할 때 한 번 이상 DB 질의를 해야하므로 오버헤드가 크다.
+
+    - 두 번째 해결 방법 : 블룸 필터 사용
+      - 어떤 집합에 특정 원소가 있는지 검사할 수 있도록 하는, 확률론에 기초한 공간 효율이 좋은 기술
+
+  - `base-62 변환`
+
+    - 진법 변환(base conversion)은 URL 단축기를 구현할 때 흔히 사용되는 접근법이다.
+    - 수의 표현 방식이 다른 두 시스템이 같은 수를 공유해야 하는 경우에 유용
+
+      <img src="https://github.com/user-attachments/assets/a62f9ebc-e80e-4d53-97af-c9a530d046a4" width=50%>
+
+### URL 단축기 상세 설계
+
+> 62진법 변환 기법을 사용해 설계
+
+<img src="https://github.com/user-attachments/assets/a89c894d-6584-45f9-9897-9b761bdb3a01" width=50%>
+
+1. 긴 URL 입력
+2. DB에 해당 URL이 있는지 검사
+3. DB에 있으면 해당 URL에 대한 단축 URL을 만든 적이 있으므로 가져와 반환
+4. DB에 없으며 새로운 URL이므로 유일한 ID 생성(7장 ID 생성기 참고)
+5. 62진법 변환을 적용해 ID를 단축 URL로 만듦
+6. ID, 단축 URL, 원래 URL로 새 DB 레코드를 만든 후 단축 URL을 Client에 전달
+
+### URL 리디렉션 상세 설계
+
+<img src="https://github.com/user-attachments/assets/e2a30442-ce6c-449f-ba73-20d01b10f488" width=50%>
+
+1. 사용자가 단축 URL 클릭
+2. 로드밸런서가 해당 클릭으로 발생한 요청을 웹 서버에 전달
+3. 단축 URL이 이미 캐시에 있는 경우, 원래 URL을 바로 꺼내 Client에 전달
+4. 캐시에 해당 단축 URL이 없는 경우 DB에서 꺼냄(DB에 없으면 거의 사용자가 잘못 입력한 경우에 해당)
+5. DB에서 꺼낸 URL을 캐시에 넣은 후 사용자에게 반환
+
+## 4단계 : 마무리
+
+### 더 알아보면 좋은 것들
+
+- 처리율 제한 장치
+- 웹 서버의 규모 확장
+- DB의 규모 확장
+- DB 분석 솔루션
+- 가용성, 데이터 일관성, 안정성
