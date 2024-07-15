@@ -47,8 +47,7 @@
 
 : 지면 관계 상 뉴스 피드는 모든 친구의 포스팅을 시간 흐름 역순(최신순)으로 모아서 만든다고 가정한다.
 
-<img src="https://github.com/user-attachments/assets/12b3cb97-4f87-45eb-948a-85ca084fc524
-"  width=50%>
+<img src="https://github.com/user-attachments/assets/12b3cb97-4f87-45eb-948a-85ca084fc524" width=50%>
 
 1. 사용자는 피드 읽기 API를 이용해 뉴스 피드를 가져온다.
 2. 로드 밸런서는 트래픽을 웹 서버들로 분산한다.
@@ -59,8 +58,7 @@
 
 ### 피드 발행 흐름 상세 설계
 
-<img src="https://github.com/user-attachments/assets/ca004874-c33d-4e1b-b022-9ca07b16ac30
-"  width=50%>
+<img src="https://github.com/user-attachments/assets/ca004874-c33d-4e1b-b022-9ca07b16ac30" width=50%>
 
 - **웹 서버**
   - 클라이언트와 통신할 뿐 아니라 인증, 처리율 제한 등의 기능도 수행한다.
@@ -99,7 +97,7 @@
 
 #### <팬아웃 서비스의 구체적인 동작>
 
-<img src="https://github.com/user-attachments/assets/a7d6e3ff-2f93-4490-9ee4-a369c6a75553"  width=50%>
+<img src="https://github.com/user-attachments/assets/a7d6e3ff-2f93-4490-9ee4-a369c6a75553" width=50%>
 
 1. 그래프 DB에서 친구 ID 목록를 가져온다.
 2. 사용자 정보 캐시에서 친구들의 정보를 가져온 뒤, mute 혹은 일부 공개 정보를 거른다.
@@ -108,8 +106,7 @@
 
 ### 피드 읽기 흐름 상세 설계
 
-<img src="https://github.com/user-attachments/assets/84f97f09-3bf1-425d-8a1d-5b85c50a7d50
-"  width=50%>
+<img src="https://github.com/user-attachments/assets/84f97f09-3bf1-425d-8a1d-5b85c50a7d50" width=50%>
 
 1. 사용자는 피드 읽기 API를 이용해 뉴스 피드를 읽으려는 요청을 보낸다.
 2. `로드밸런서`가 요청을 웹 서버 가운데 하나로 보낸다.
@@ -120,8 +117,7 @@
 
 ### 캐시 구조
 
-<img src="https://github.com/user-attachments/assets/d731c938-d2d6-4645-a285-1eb232d08951
-"  width=50%>
+<img src="https://github.com/user-attachments/assets/d731c938-d2d6-4645-a285-1eb232d08951" width=50%>
 
 - 뉴스 피드 : 뉴스 피드의 ID 보관
 - 콘텐츠 : 포스팅 데이터 보관(인기 콘텐츠 따로 보관)
